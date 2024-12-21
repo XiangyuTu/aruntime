@@ -104,13 +104,23 @@ impl Reactor {
         token
     }
 
+    pub(crate) fn accept(&mut self, fd: impl AsRawFd, cx: &mut Context, addr: *mut libc::sockaddr, addr_len: *mut libc::socklen_t) -> u64 {
+        let token = self.register_waker(fd.as_raw_fd(), cx.waker().clone());
+
+        let sqe = opcode::Accept::new(types::Fd(fd.as_raw_fd()), addr, addr_len).flags(libc::O_CLOEXEC).build().user_data(token);
+        unsafe { self.uring.submission().push(&sqe).unwrap() };
+
+        token
+    }
+
     pub fn wait(&mut self) {
         let _ = self.uring.submit();
         for cqe in self.uring.completion() {
             let token = cqe.user_data();
             let result = cqe.result();
 
-            println!("CQE token: {:?}", token);
+            // debug
+            // println!("CQE token: {:?}", token);
             let (fd, waker) = self.wakers[token as usize].take().unwrap();
             // waker had been removed from wakers
             assert!(self.wakers[token as usize].is_none());
