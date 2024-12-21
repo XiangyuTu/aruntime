@@ -43,6 +43,9 @@ impl From<std::fs::File> for File {
 impl Drop for File {
     fn drop(&mut self) {
         unsafe {
+            let reactor = get_reactor();
+            reactor.borrow_mut().unregister_fd(self.fd);
+
             libc::close(self.fd);
         }
     }
@@ -57,7 +60,7 @@ impl AsRawFd for File {
 pub struct FileRead<'a> {
     file: &'a File,
     buf: &'a mut [u8],
-    token: Option<usize>,
+    token: Option<u64>,
 }
 
 impl<'a> FileRead<'a> {
@@ -88,7 +91,7 @@ impl<'a> Future for FileRead<'a> {
 
             Poll::Pending
         } else {
-            if let Some(result) = reactor.borrow().get_token_result(self.token.unwrap()) {
+            if let Some(result) = reactor.borrow_mut().take_token_result(self.token.unwrap()) {
                 if result < 0 {
                     let err_code = -result;
                     match err_code {
@@ -108,7 +111,7 @@ impl<'a> Future for FileRead<'a> {
 pub struct FileWrite<'a> {
     file: &'a File,
     buf: &'a [u8],
-    token: Option<usize>,
+    token: Option<u64>,
 }
 
 impl<'a> FileWrite<'a> {
@@ -138,7 +141,7 @@ impl<'a> Future for FileWrite<'a> {
 
             Poll::Pending
         } else {
-            if let Some(result) = reactor.borrow().get_token_result(self.token.unwrap()) {
+            if let Some(result) = reactor.borrow_mut().take_token_result(self.token.unwrap()) {
                 if result < 0 {
                     let err_code = -result;
                     match err_code {
