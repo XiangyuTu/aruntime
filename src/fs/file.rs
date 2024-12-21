@@ -1,14 +1,20 @@
-use std:: os::fd::{AsRawFd, IntoRawFd, RawFd};
+use std::{
+    cell::RefCell,
+    os::fd::{AsRawFd, IntoRawFd, RawFd},
+    rc::{Rc, Weak},
+};
 
 use crate::{
     io::{AsyncReader, AsyncWriter},
-    reactor::get_reactor
+    reactor::{get_reactor, Reactor},
 };
 
 const AT_FDWCD: isize = -100;
 
 pub struct File {
     fd: RawFd,
+
+    reactor: Weak<RefCell<Reactor>>,
 }
 
 impl File {
@@ -17,8 +23,11 @@ impl File {
         // println!("path: {:?}", path.as_c_str().to_bytes());
         unsafe {
             let fd = libc::openat(AT_FDWCD as i32, path.as_ptr() as *const _, libc::O_RDONLY);
-
-            Self { fd }
+            let reactor = get_reactor();
+            Self {
+                fd,
+                reactor: Rc::downgrade(&reactor),
+            }
         }
     }
 
@@ -34,14 +43,18 @@ impl File {
 impl From<std::fs::File> for File {
     fn from(file: std::fs::File) -> Self {
         let fd = file.into_raw_fd();
-        Self { fd }
+        let reactor = get_reactor();
+        Self {
+            fd,
+            reactor: Rc::downgrade(&reactor),
+        }
     }
 }
 
 impl Drop for File {
     fn drop(&mut self) {
         unsafe {
-            let reactor = get_reactor();
+            let reactor = self.reactor.upgrade().unwrap();
             reactor.borrow_mut().unregister_fd(self.fd);
 
             libc::close(self.fd);
