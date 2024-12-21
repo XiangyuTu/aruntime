@@ -36,7 +36,6 @@ fn main() {
             Err(e) => {
                 println!("file3 err: {:?}", e);
             }
-            
         }
     });
 }

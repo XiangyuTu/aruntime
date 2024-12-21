@@ -50,7 +50,7 @@ impl Reactor {
         waker_list.retain(|&t| t != token);
     }
     
-    pub fn fsync(&mut self, fd: impl AsRawFd, cx: &mut Context) -> usize {
+    pub(crate) fn fsync(&mut self, fd: impl AsRawFd, cx: &mut Context) -> usize {
         let token = self.register_waker(fd.as_raw_fd(), cx.waker().clone());
 
         let sqe = opcode::Fsync::new(types::Fd(fd.as_raw_fd())).build().user_data(token as u64);
@@ -59,7 +59,7 @@ impl Reactor {
         token
     }
 
-    pub fn read(&mut self, fd: impl AsRawFd, cx: &mut Context, buf: *mut u8, len: usize) -> usize {
+    pub(crate) fn read(&mut self, fd: impl AsRawFd, cx: &mut Context, buf: *mut u8, len: usize) -> usize {
         let token = self.register_waker(fd.as_raw_fd(), cx.waker().clone());
 
         let sqe = opcode::Read::new(types::Fd(fd.as_raw_fd()), buf, len as u32).build().user_data(token as u64);
@@ -68,7 +68,7 @@ impl Reactor {
         token
     }
 
-    pub fn readv(&mut self, fd: impl AsRawFd, cx: &mut Context, bufs: *const libc::iovec, bufs_len: usize)-> usize {
+    pub(crate) fn readv(&mut self, fd: impl AsRawFd, cx: &mut Context, bufs: *const libc::iovec, bufs_len: usize)-> usize {
         let token: usize = self.register_waker(fd.as_raw_fd(), cx.waker().clone());
 
         let sqe = opcode::Readv::new(types::Fd(fd.as_raw_fd()), bufs, bufs_len as u32).build().user_data(token as u64);
@@ -77,7 +77,7 @@ impl Reactor {
         token
     }
 
-    pub fn write(&mut self, fd: impl AsRawFd, cx: &mut Context, buf: *const u8, len: usize) -> usize {
+    pub(crate) fn write(&mut self, fd: impl AsRawFd, cx: &mut Context, buf: *const u8, len: usize) -> usize {
         let token = self.register_waker(fd.as_raw_fd(), cx.waker().clone());
 
         let sqe = opcode::Write::new(types::Fd(fd.as_raw_fd()), buf, len as u32).build().user_data(token as u64);
@@ -86,7 +86,7 @@ impl Reactor {
         token
     }
 
-    pub fn writev(&mut self, fd: impl AsRawFd, cx: &mut Context, bufs: *const libc::iovec, bufs_len: usize) -> usize {
+    pub(crate) fn writev(&mut self, fd: impl AsRawFd, cx: &mut Context, bufs: *const libc::iovec, bufs_len: usize) -> usize {
         let token = self.register_waker(fd.as_raw_fd(), cx.waker().clone());
 
         let sqe = opcode::Writev::new(types::Fd(fd.as_raw_fd()), bufs, bufs_len as u32).build().user_data(token as u64);
@@ -114,7 +114,7 @@ impl Reactor {
         self.tokens_completion_result[token].is_some()
     }
 
-    pub fn get_token_result(&self, token: usize) -> Option<i32> {
+    pub(crate) fn get_token_result(&self, token: usize) -> Option<i32> {
         self.tokens_completion_result[token]
     }
 }
