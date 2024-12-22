@@ -3,12 +3,11 @@ use std::{
     future::Future,
     io,
     net::{ToSocketAddrs, SocketAddr},
-    os::fd::{AsRawFd, RawFd},
+    os::fd::{AsRawFd, IntoRawFd, RawFd},
     rc::{Rc, Weak},
     task::{Context, Poll},
 };
 
-use futures::future::Pending;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 
 use crate::reactor::{self, get_reactor, Reactor};
@@ -41,7 +40,7 @@ impl TcpListener {
 
         println!("tcp bind with fd {}", sock.as_raw_fd());
         Ok(Self {
-            fd: sock.as_raw_fd(),
+            fd: sock.into_raw_fd(),
             _reactor: Rc::downgrade(&reactor),
         })
     }
@@ -93,9 +92,7 @@ impl Future for AccpetFuture {
         } else {
             let mut reactor = reactor.borrow_mut();
             if let Some(result) = reactor.take_token_result(self.token.unwrap()) {
-                if result > 0 {
-                    println!("accept success {}", result);
-
+                if result >= 0 {
                     let (_, addr) = unsafe {
                         socket2::SockAddr::init(move |addr_storage, len| {
                             socketaddr.0.clone_into(&mut *addr_storage);
@@ -105,15 +102,7 @@ impl Future for AccpetFuture {
                     };
 
                     Poll::Ready(Ok(addr.as_socket()))
-                } else {
-                    let token = reactor.accept(
-                        self.fd,
-                        cx,
-                        &mut socketaddr.0 as *mut _ as *mut _,
-                        &mut socketaddr.1,
-                    );
-                    self.token = Some(token);
-                    
+                } else {                    
                     Poll::Pending
                 }
             } else {
