@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     future::Future,
-    io::{Error as IoError, ErrorKind},
+    io::{Result as IoResult, Error as IoError, ErrorKind},
     rc::{Rc, Weak},
     task::{Context, Poll},
 };
@@ -28,7 +28,7 @@ impl<'a> AsyncReader<'a> {
 }
 
 impl<'a> Future for AsyncReader<'a> {
-    type Output = Result<usize, IoError>;
+    type Output = IoResult<usize>;
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let reactor = self.reactor.upgrade().unwrap();
@@ -84,7 +84,7 @@ impl<'a> AsyncWriter<'a> {
 }
 
 impl<'a> Future for AsyncWriter<'a> {
-    type Output = Result<usize, std::io::Error>;
+    type Output = IoResult<usize>;
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let reactor = self.reactor.upgrade().unwrap();

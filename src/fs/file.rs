@@ -1,5 +1,7 @@
 use std::{
     cell::RefCell,
+    future::Future,
+    io,
     os::fd::{AsRawFd, IntoRawFd, RawFd},
     rc::{Rc, Weak},
 };
@@ -31,11 +33,11 @@ impl File {
         }
     }
 
-    pub fn read<'a>(&'a self, buf: &'a mut [u8]) -> AsyncReader<'a> {
+    pub fn read<'a>(&'a self, buf: &'a mut [u8]) -> impl Future<Output = io::Result<usize>> + 'a {
         AsyncReader::new(self.fd, buf)
     }
 
-    pub fn write<'a>(&'a self, buf: &'a [u8]) -> AsyncWriter<'a> {
+    pub fn write<'a>(&'a self, buf: &'a [u8]) -> impl Future<Output = io::Result<usize>> + 'a {
         AsyncWriter::new(self.fd, buf)
     }
 }
